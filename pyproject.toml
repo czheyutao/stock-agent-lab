@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stock-agent-lab"
+version = "0.1.0"
+description = "A lightweight multi-agent A-share stock analysis lab."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "akshare>=1.17.86",
+    "langgraph>=0.4.8",
+    "openai>=1.0.0,<2.0.0",
+    "pandas>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "rich>=13.0.0",
+    "typer>=0.12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[project.scripts]
+stock-agent = "stock_agent_lab.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
