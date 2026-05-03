@@ -14,9 +14,10 @@
 
 ### 2.1 工作流
 
-当前 graph 已经是 LangGraph 实现，并包含两类回路：
+当前 graph 已经是 LangGraph 实现，并包含三类回路：
 
 - 工具回路
+  - `Fundamentals Analyst -> tools_fundamentals -> Fundamentals Analyst`
   - `Technical Analyst -> tools_technical -> Technical Analyst`
   - `News Analyst -> tools_news -> News Analyst`
 - 多空辩论回路
@@ -34,6 +35,7 @@
 
 - A 股历史日线行情
 - 个股新闻
+- 财务/基本面数据（PE/PB/ROE/EPS/净利润率/资产负债率/营收增长/利润增长）
 - 技术指标输入数据整理
 
 并已补强：
@@ -104,7 +106,6 @@
 
 ### 4.1 分析层能力缺口
 
-- `Fundamentals Analyst`
 - `Social Analyst`
 - 风险辩论回路
   - `Risky Analyst`
@@ -114,7 +115,6 @@
 
 ### 4.2 数据层能力缺口
 
-- 基本面/财务数据
 - 实时行情快照
 - 股票基础信息
 - 更强的新闻预处理
@@ -166,9 +166,8 @@
 
 ### P1
 
-- 补 `Fundamentals Analyst`
-- 补财务数据获取入口
 - 给数据层增加 `data_source_meta`
+- 增强新闻预处理
 
 ### P2
 

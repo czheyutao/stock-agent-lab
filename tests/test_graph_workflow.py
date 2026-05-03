@@ -16,6 +16,10 @@ def test_graph_runs_expected_node_trace(sample_dataset):
     state = StockAnalysisGraph(MockLLMClient()).run(sample_dataset)
 
     assert state["node_trace"] == [
+        "Fundamentals Analyst",
+        "tools_fundamentals",
+        "Fundamentals Analyst",
+        "Msg Clear Fundamentals",
         "Technical Analyst",
         "tools_technical",
         "Technical Analyst",
@@ -33,16 +37,18 @@ def test_graph_runs_expected_node_trace(sample_dataset):
     assert state["investment_debate_state"]["count"] == 2
     assert state["investment_plan"]
     assert state["final_trade_decision"]
-    assert set(state["results"]) == {"technical", "news", "bull", "bear", "trader", "risk"}
-    assert state["tool_call_count"] == {"technical": 1, "news": 1}
-    assert state["tool_outputs"] == {"technical": "", "news": ""}
+    assert set(state["results"]) == {"fundamentals", "technical", "news", "bull", "bear", "trader", "risk"}
+    assert state["tool_call_count"] == {"fundamentals": 1, "technical": 1, "news": 1}
+    assert state["tool_outputs"] == {"fundamentals": "", "technical": "", "news": ""}
 
 
 def test_graph_supports_multiple_debate_rounds(sample_dataset):
     state = StockAnalysisGraph(MockLLMClient(), max_debate_rounds=2).run(sample_dataset)
 
+    assert state["node_trace"].count("Fundamentals Analyst") == 2
     assert state["node_trace"].count("Bull Researcher") == 2
     assert state["node_trace"].count("Bear Researcher") == 2
+    assert state["node_trace"].count("tools_fundamentals") == 1
     assert state["node_trace"].count("tools_technical") == 1
     assert state["node_trace"].count("tools_news") == 1
     assert state["investment_debate_state"]["count"] == 4

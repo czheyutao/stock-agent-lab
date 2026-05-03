@@ -44,6 +44,7 @@ def test_cli_passes_include_node_trace_flag(monkeypatch, tmp_path):
                 analysis_date="2026-04-28",
                 data_range="2026-04-01 至 2026-04-28",
                 core_summary="测试摘要",
+                fundamentals=AgentResult(agent="基本面分析师", summary="基本面测试"),
                 technical=AgentResult(agent="技术面分析师", summary="技术面测试"),
                 news=AgentResult(agent="新闻情绪分析师", summary="新闻测试"),
                 bull=AgentResult(agent="多头研究员", summary="多头测试"),

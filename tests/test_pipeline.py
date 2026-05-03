@@ -19,6 +19,8 @@ def test_pipeline_runs_with_mock_llm(sample_dataset):
 
     assert report.symbol == "600519"
     assert report.recommendation == "HOLD"
+    assert report.fundamentals.summary
+    assert "基本面" in report.fundamentals.summary
     assert report.technical.summary
     assert report.news.summary
     assert report.bull.summary
@@ -33,6 +35,6 @@ def test_pipeline_can_include_node_trace(sample_dataset):
     report = AnalysisPipeline(MockLLMClient(), include_node_trace=True).run(sample_dataset)
 
     assert report.node_trace
-    assert report.node_trace[0] == "Technical Analyst"
+    assert report.node_trace[0] == "Fundamentals Analyst"
     assert "tools_technical" in report.node_trace
     assert report.node_trace[-1] == "Risk Manager"

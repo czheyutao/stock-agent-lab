@@ -42,6 +42,21 @@ class TechnicalSnapshot:
 
 
 @dataclass
+class FundamentalsSnapshot:
+    """基本面快照，由数据层填充，供基本面分析师消费。"""
+
+    latest_pe: float | None = None
+    latest_pb: float | None = None
+    latest_roe: float | None = None
+    eps: float | None = None
+    net_profit_margin: float | None = None
+    debt_ratio: float | None = None
+    revenue_growth_pct: float | None = None
+    profit_growth_pct: float | None = None
+    _raw_summary: str = ""
+
+
+@dataclass
 class NewsItem:
     title: str
     url: str | None = None
@@ -57,6 +72,7 @@ class StockDataset:
     prices: list[PriceBar]
     technicals: TechnicalSnapshot
     news: list[NewsItem] = field(default_factory=list)
+    fundamentals: FundamentalsSnapshot | None = None
     warnings: list[str] = field(default_factory=list)
 
 
@@ -73,6 +89,7 @@ class AnalysisReport:
     analysis_date: str
     data_range: str
     core_summary: str
+    fundamentals: AgentResult
     technical: AgentResult
     news: AgentResult
     bull: AgentResult
@@ -98,6 +115,7 @@ class AnalysisReport:
             analysis_date=today,
             data_range="",
             core_summary="",
+            fundamentals=empty,
             technical=empty,
             news=empty,
             bull=empty,

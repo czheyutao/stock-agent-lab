@@ -40,6 +40,7 @@ class ReportWriter:
             "## 核心结论",
             report.core_summary,
             "",
+            self._agent_section("基本面分析", report.fundamentals),
             self._agent_section("技术面", report.technical),
             self._agent_section("新闻情绪", report.news),
             self._agent_section("多头观点", report.bull),

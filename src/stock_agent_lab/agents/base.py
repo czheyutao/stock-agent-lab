@@ -46,6 +46,33 @@ def format_technicals(dataset: StockDataset) -> str:
     )
 
 
+def format_fundamentals(dataset: StockDataset) -> str:
+    """将 FundamentalsSnapshot 格式化为 LLM 可读的中文文本。"""
+    if not dataset.fundamentals:
+        return "无可用基本面数据。"
+    f = dataset.fundamentals
+    lines = [f"股票代码: {dataset.symbol}"]
+    if f.latest_pe is not None:
+        lines.append(f"市盈率(PE): {f.latest_pe:.2f}")
+    if f.latest_pb is not None:
+        lines.append(f"市净率(PB): {f.latest_pb:.2f}")
+    if f.latest_roe is not None:
+        lines.append(f"净资产收益率(ROE): {f.latest_roe:.2f}%")
+    if f.eps is not None:
+        lines.append(f"每股收益(EPS): {f.eps:.4f}")
+    if f.net_profit_margin is not None:
+        lines.append(f"净利润率: {f.net_profit_margin:.2f}%")
+    if f.debt_ratio is not None:
+        lines.append(f"资产负债率: {f.debt_ratio:.2f}%")
+    if f.revenue_growth_pct is not None:
+        lines.append(f"营收同比增长: {f.revenue_growth_pct:.2f}%")
+    if f.profit_growth_pct is not None:
+        lines.append(f"净利润同比增长: {f.profit_growth_pct:.2f}%")
+    if f._raw_summary:
+        lines.append(f"\n原始数据详情:\n{f._raw_summary}")
+    return "\n".join(lines)
+
+
 def format_news(dataset: StockDataset) -> str:
     if not dataset.news:
         return "无可用新闻。"

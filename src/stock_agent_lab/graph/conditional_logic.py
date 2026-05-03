@@ -24,6 +24,15 @@ class ConditionalLogic:
         self.max_debate_rounds = max_debate_rounds
         self.max_risk_discuss_rounds = max_risk_discuss_rounds
 
+    def should_continue_fundamentals(self, state: AgentState) -> str:
+        """决定基本面分析师是继续走工具节点，还是清理临时状态后进入下一阶段。"""
+
+        if state["results"].get("fundamentals"):
+            return "Msg Clear Fundamentals"
+        if state["tool_requests"].get("fundamentals"):
+            return "tools_fundamentals"
+        return "Msg Clear Fundamentals"
+
     def should_continue_technical(self, state: AgentState) -> str:
         """决定技术面分析师是继续走工具节点，还是清理临时状态后进入下一阶段。"""
 

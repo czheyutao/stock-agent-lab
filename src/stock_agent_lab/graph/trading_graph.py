@@ -11,6 +11,7 @@ from __future__ import annotations
 from stock_agent_lab.agents import (
     BearResearcher,
     BullResearcher,
+    FundamentalsAnalyst,
     NewsSentimentAnalyst,
     RiskManager,
     TechnicalAnalyst,
@@ -42,6 +43,7 @@ class StockAnalysisGraph:
         self.propagator = Propagator()
         # GraphSetup 负责把具体 Agent 注入图节点，便于后续替换某个 Agent 实现。
         self.graph = GraphSetup(
+            fundamentals=FundamentalsAnalyst(llm),
             technical=TechnicalAnalyst(llm),
             news=NewsSentimentAnalyst(llm),
             bull=BullResearcher(llm),

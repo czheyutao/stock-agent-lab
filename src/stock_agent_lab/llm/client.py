@@ -71,6 +71,8 @@ class OpenAICompatibleClient:
 class MockLLMClient:
     def complete(self, system: str, user: str) -> str:
         role = system.splitlines()[0].strip() if system else "Agent"
+        if "基本面" in role:
+            return "基本面: 当前估值处于合理区间，ROE稳定，营收持续增长，资产负债率可控，财务健康度良好。偏多倾向。"
         if "交易员" in role:
             return "建议: HOLD\n理由: 当前信号混合，等待更明确的趋势确认。"
         if "风控" in role:

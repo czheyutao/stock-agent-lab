@@ -19,7 +19,7 @@ from typing import Callable, TypeVar
 import pandas as pd
 
 from stock_agent_lab.data.indicators import compute_technicals
-from stock_agent_lab.models import NewsItem, PriceBar, StockDataset
+from stock_agent_lab.models import FundamentalsSnapshot, NewsItem, PriceBar, StockDataset
 
 T = TypeVar("T")
 
@@ -72,6 +72,8 @@ class AkShareChinaStockProvider:
         history = self.fetch_history(symbol, days)
         news, warnings = self.fetch_news(symbol)
         technicals = compute_technicals(history)
+        fundamentals, f_warnings = self.fetch_fundamentals(symbol)
+        warnings.extend(f_warnings)
         prices = [self._build_price_bar(row) for row in history.itertuples(index=False)]
 
         return StockDataset(
@@ -81,6 +83,7 @@ class AkShareChinaStockProvider:
             prices=prices,
             technicals=technicals,
             news=news,
+            fundamentals=fundamentals,
             warnings=warnings,
         )
 
@@ -120,6 +123,123 @@ class AkShareChinaStockProvider:
             if item is not None
         ]
         return items, warnings
+
+    def fetch_fundamentals(self, symbol: str) -> tuple[FundamentalsSnapshot | None, list[str]]:
+        """获取基本面快照，返回 (快照, 警告列表)。
+        获取失败时快照为 None，不阻断流程。
+        """
+        warnings: list[str] = []
+        try:
+            ak = self._prepare_akshare()
+            snapshot = self._do_fetch_fundamentals(ak, symbol, warnings)
+            return snapshot, warnings
+        except Exception as exc:
+            warnings.append(f"基本面数据获取异常: {exc}")
+            return None, warnings
+
+    def _do_fetch_fundamentals(
+        self, ak, symbol: str, warnings: list[str]
+    ) -> FundamentalsSnapshot | None:
+        import datetime
+
+        # 路径：stock_financial_analysis_indicator 提供 ROE/利润率/增长率等
+        analysis_raw = None
+        current_year = datetime.date.today().year
+        try:
+            analysis_raw = self._call_with_proxy_retry(
+                lambda: ak.stock_financial_analysis_indicator(
+                    symbol=symbol, start_year=str(current_year - 3)
+                )
+            )
+        except Exception as exc:
+            warnings.append(f"财务分析指标获取失败: {exc}")
+
+        # PE/PB 尝试从全市场快照提取（走代理重试）
+        pe = pb = None
+        try:
+            spot_df = self._call_with_proxy_retry(lambda: ak.stock_zh_a_spot_em())
+            if spot_df is not None and not spot_df.empty:
+                stock_row = spot_df[spot_df["代码"] == symbol]
+                if not stock_row.empty:
+                    row = stock_row.iloc[0]
+
+                    def _safe_float_spot(val) -> float | None:
+                        if val is None:
+                            return None
+                        try:
+                            v = float(val)
+                            return None if pd.isna(v) else v
+                        except (ValueError, TypeError):
+                            return None
+
+                    pe = _safe_float_spot(row.get("市盈率-动态"))
+                    pb = _safe_float_spot(row.get("市净率"))
+        except Exception as exc:
+            warnings.append(f"实时行情快照获取失败(PE/PB): {exc}")
+
+        if analysis_raw is None and pe is None and pb is None:
+            return None
+
+        return self._build_fundamentals_snapshot(analysis_raw, pe, pb)
+
+    @staticmethod
+    def _build_fundamentals_snapshot(
+        analysis_raw: pd.DataFrame | None,
+        pe: float | None = None,
+        pb: float | None = None,
+    ) -> FundamentalsSnapshot | None:
+        def _safe_float(val) -> float | None:
+            if val is None:
+                return None
+            try:
+                v = float(val)
+                return None if pd.isna(v) else v
+            except (ValueError, TypeError):
+                return None
+
+        analysis_latest = (
+            analysis_raw.iloc[-1] if analysis_raw is not None and not analysis_raw.empty else None
+        )
+
+        # 从 stock_financial_analysis_indicator 提取（使用实际的中文列名）
+        roe = _safe_float(analysis_latest.get("净资产收益率(%)")) if analysis_latest is not None else None
+        eps = (
+            _safe_float(analysis_latest.get("每股收益_调整后(元)"))
+            if analysis_latest is not None
+            else None
+        )
+        profit_margin = (
+            _safe_float(analysis_latest.get("销售净利率(%)")) if analysis_latest is not None else None
+        )
+        debt_ratio = (
+            _safe_float(analysis_latest.get("资产负债率(%)")) if analysis_latest is not None else None
+        )
+        rev_growth = (
+            _safe_float(analysis_latest.get("主营业务收入增长率(%)"))
+            if analysis_latest is not None
+            else None
+        )
+        profit_growth = (
+            _safe_float(analysis_latest.get("净利润增长率(%)"))
+            if analysis_latest is not None
+            else None
+        )
+
+        raw_parts: list[str] = []
+        if analysis_raw is not None:
+            raw_parts.append(str(analysis_raw.tail(5).to_string()))
+
+        return FundamentalsSnapshot(
+            latest_pe=pe,
+            latest_pb=pb,
+            latest_roe=roe,
+            eps=eps,
+            net_profit_margin=profit_margin,
+            debt_ratio=debt_ratio,
+            revenue_growth_pct=rev_growth,
+            profit_growth_pct=profit_growth,
+            _raw_summary="\n".join(raw_parts) if raw_parts else "",
+        )
 
     @staticmethod
     def _validate_request(symbol: str, days: int) -> None:

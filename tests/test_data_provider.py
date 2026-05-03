@@ -119,3 +119,90 @@ def test_news_fields_are_parsed(monkeypatch):
     assert news[0].title == "公司发布经营动态"
     assert news[0].url == "https://example.com/news-1"
     assert news[0].source == "测试来源"
+
+
+def test_fundamentals_returns_none_when_no_data(monkeypatch):
+    fake_akshare = types.SimpleNamespace(
+        stock_financial_analysis_indicator=lambda **kwargs: (
+            _ for _ in ()
+        ).throw(RuntimeError("no data")),
+        stock_zh_a_spot_em=lambda: (_ for _ in ()).throw(RuntimeError("no data")),
+    )
+    monkeypatch.setitem(sys.modules, "akshare", fake_akshare)
+
+    result, warnings = AkShareChinaStockProvider().fetch_fundamentals("600519")
+    assert result is None
+    assert len(warnings) > 0
+
+
+def test_fundamentals_extracts_snapshot(monkeypatch):
+    analysis_raw = pd.DataFrame(
+        [
+            {
+                "净资产收益率(%)": 18.5,
+                "每股收益_调整后(元)": 2.45,
+                "销售净利率(%)": 35.2,
+                "资产负债率(%)": 28.0,
+                "主营业务收入增长率(%)": 12.3,
+                "净利润增长率(%)": 15.1,
+            }
+        ]
+    )
+    spot_df = pd.DataFrame(
+        [
+            {
+                "代码": "600519",
+                "市盈率-动态": 25.5,
+                "市净率": 6.8,
+            },
+            {
+                "代码": "000001",
+                "市盈率-动态": 5.0,
+                "市净率": 0.8,
+            },
+        ]
+    )
+    fake_akshare = types.SimpleNamespace(
+        stock_financial_analysis_indicator=lambda **kwargs: analysis_raw,
+        stock_zh_a_spot_em=lambda: spot_df,
+    )
+    monkeypatch.setitem(sys.modules, "akshare", fake_akshare)
+
+    result, warnings = AkShareChinaStockProvider().fetch_fundamentals("600519")
+    assert result is not None
+    assert result.latest_pe == 25.5
+    assert result.latest_pb == 6.8
+    assert result.latest_roe == 18.5
+    assert result.eps == 2.45
+    assert result.revenue_growth_pct == 12.3
+    assert result.profit_growth_pct == 15.1
+    assert result.net_profit_margin == 35.2
+    assert result.debt_ratio == 28.0
+
+
+def test_fundamentals_falls_back_on_partial_failure(monkeypatch):
+    """financial_analysis 成功但 spot 失败时仍有快照，PE/PB 为 None。"""
+    analysis_raw = pd.DataFrame(
+        [
+            {
+                "净资产收益率(%)": 18.5,
+                "每股收益_调整后(元)": 2.45,
+                "销售净利率(%)": 35.2,
+                "资产负债率(%)": 28.0,
+                "主营业务收入增长率(%)": 12.3,
+                "净利润增长率(%)": 15.1,
+            }
+        ]
+    )
+    fake_akshare = types.SimpleNamespace(
+        stock_financial_analysis_indicator=lambda **kwargs: analysis_raw,
+        stock_zh_a_spot_em=lambda: (_ for _ in ()).throw(RuntimeError("timeout")),
+    )
+    monkeypatch.setitem(sys.modules, "akshare", fake_akshare)
+
+    result, warnings = AkShareChinaStockProvider().fetch_fundamentals("600519")
+    assert result is not None
+    assert result.latest_pe is None
+    assert result.latest_pb is None
+    assert result.latest_roe == 18.5
+    assert result.revenue_growth_pct == 12.3

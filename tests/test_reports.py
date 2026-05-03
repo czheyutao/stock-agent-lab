@@ -26,6 +26,7 @@ def test_report_writer_outputs_markdown_and_json(tmp_path, sample_dataset):
     assert markdown_path.exists()
     assert json_path.exists()
     assert "核心结论" in markdown
+    assert "基本面分析" in markdown
     assert "技术面" in markdown
     assert "新闻情绪" in markdown
     assert "免责声明" in markdown
@@ -43,7 +44,9 @@ def test_report_writer_can_include_node_trace(tmp_path, sample_dataset):
     data = json.loads(json_path.read_text(encoding="utf-8"))
 
     assert "执行轨迹" in markdown
+    assert "- Fundamentals Analyst" in markdown
+    assert "- tools_fundamentals" in markdown
     assert "- Technical Analyst" in markdown
     assert "- tools_technical" in markdown
-    assert data["node_trace"][0] == "Technical Analyst"
+    assert data["node_trace"][0] == "Fundamentals Analyst"
     assert "tools_news" in data["node_trace"]

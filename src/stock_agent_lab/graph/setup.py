@@ -17,12 +17,13 @@ from langgraph.graph import END, START, StateGraph
 from stock_agent_lab.agents import (
     BearResearcher,
     BullResearcher,
+    FundamentalsAnalyst,
     NewsSentimentAnalyst,
     RiskManager,
     TechnicalAnalyst,
     TraderAgent,
 )
-from stock_agent_lab.agents.base import format_news, format_technicals
+from stock_agent_lab.agents.base import format_fundamentals, format_news, format_technicals
 from stock_agent_lab.graph.conditional_logic import ConditionalLogic
 from stock_agent_lab.graph.states import AgentState
 from stock_agent_lab.models import AgentResult
@@ -33,6 +34,7 @@ class GraphSetup:
 
     def __init__(
         self,
+        fundamentals: FundamentalsAnalyst,
         technical: TechnicalAnalyst,
         news: NewsSentimentAnalyst,
         bull: BullResearcher,
@@ -41,6 +43,7 @@ class GraphSetup:
         risk: RiskManager,
         conditional_logic: ConditionalLogic,
     ) -> None:
+        self.fundamentals = fundamentals
         self.technical = technical
         self.news = news
         self.bull = bull
@@ -53,6 +56,10 @@ class GraphSetup:
         """创建并编译 LangGraph。"""
 
         workflow = StateGraph(AgentState)
+
+        workflow.add_node("Fundamentals Analyst", self._fundamentals_node)
+        workflow.add_node("tools_fundamentals", self._fundamentals_tool_node)
+        workflow.add_node("Msg Clear Fundamentals", self._clear_fundamentals_node)
 
         workflow.add_node("Technical Analyst", self._technical_node)
         workflow.add_node("tools_technical", self._technical_tool_node)
@@ -68,7 +75,17 @@ class GraphSetup:
         workflow.add_node("Trader", self._trader_node)
         workflow.add_node("Risk Manager", self._risk_manager_node)
 
-        workflow.add_edge(START, "Technical Analyst")
+        workflow.add_edge(START, "Fundamentals Analyst")
+        workflow.add_conditional_edges(
+            "Fundamentals Analyst",
+            self.conditional_logic.should_continue_fundamentals,
+            {
+                "tools_fundamentals": "tools_fundamentals",
+                "Msg Clear Fundamentals": "Msg Clear Fundamentals",
+            },
+        )
+        workflow.add_edge("tools_fundamentals", "Fundamentals Analyst")
+        workflow.add_edge("Msg Clear Fundamentals", "Technical Analyst")
         workflow.add_conditional_edges(
             "Technical Analyst",
             self.conditional_logic.should_continue_technical,
@@ -112,6 +129,56 @@ class GraphSetup:
         workflow.add_edge("Risk Manager", END)
 
         return workflow.compile()
+
+    def _fundamentals_node(self, state: AgentState) -> dict[str, object]:
+        if (
+            "fundamentals" not in state["results"]
+            and not state["tool_outputs"]["fundamentals"]
+        ):
+            tool_requests = dict(state["tool_requests"])
+            tool_requests["fundamentals"] = True
+            return {"tool_requests": tool_requests, "node_trace": ["Fundamentals Analyst"]}
+
+        if "fundamentals" in state["results"]:
+            return {"node_trace": ["Fundamentals Analyst"]}
+
+        results = dict(state["results"])
+        context = {
+            "fundamentals_tool_data": AgentResult(
+                agent="tools_fundamentals",
+                summary=state["tool_outputs"]["fundamentals"],
+            )
+        }
+        results["fundamentals"] = self.fundamentals.run(state["dataset"], context)
+        return {
+            "results": results,
+            "node_trace": ["Fundamentals Analyst"],
+        }
+
+    def _fundamentals_tool_node(self, state: AgentState) -> dict[str, object]:
+        tool_outputs = dict(state["tool_outputs"])
+        tool_outputs["fundamentals"] = format_fundamentals(state["dataset"])
+        tool_requests = dict(state["tool_requests"])
+        tool_requests["fundamentals"] = False
+        tool_call_count = dict(state["tool_call_count"])
+        tool_call_count["fundamentals"] += 1
+        return {
+            "tool_outputs": tool_outputs,
+            "tool_requests": tool_requests,
+            "tool_call_count": tool_call_count,
+            "node_trace": ["tools_fundamentals"],
+        }
+
+    def _clear_fundamentals_node(self, state: AgentState) -> dict[str, object]:
+        tool_outputs = dict(state["tool_outputs"])
+        tool_outputs["fundamentals"] = ""
+        tool_requests = dict(state["tool_requests"])
+        tool_requests["fundamentals"] = False
+        return {
+            "tool_outputs": tool_outputs,
+            "tool_requests": tool_requests,
+            "node_trace": ["Msg Clear Fundamentals"],
+        }
 
     def _technical_node(self, state: AgentState) -> dict[str, object]:
         # 第一次进入时先请求工具节点；拿到工具结果后再真正生成技术面报告。

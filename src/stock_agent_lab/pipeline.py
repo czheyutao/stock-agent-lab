@@ -16,7 +16,7 @@ from datetime import date
 from stock_agent_lab.agents import TraderAgent
 from stock_agent_lab.graph import StockAnalysisGraph
 from stock_agent_lab.llm import LLMClient
-from stock_agent_lab.models import AnalysisReport, StockDataset
+from stock_agent_lab.models import AgentResult, AnalysisReport, StockDataset
 
 
 DISCLAIMER = "本报告仅用于学习和研究多 Agent 分析流程，不构成任何投资建议或交易依据。"
@@ -49,6 +49,9 @@ class AnalysisPipeline:
             analysis_date=date.today().isoformat(),
             data_range=f"{dataset.start_date} 至 {dataset.end_date}",
             core_summary=f"{dataset.symbol} 当前多 Agent 综合建议为 {recommendation}。",
+            fundamentals=results.get(
+                "fundamentals", AgentResult(agent="基本面分析师", summary="无可用基本面数据。")
+            ),
             technical=results["technical"],
             news=results["news"],
             bull=results["bull"],

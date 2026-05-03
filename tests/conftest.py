@@ -10,7 +10,13 @@ from __future__ import annotations
 
 import pytest
 
-from stock_agent_lab.models import NewsItem, PriceBar, StockDataset, TechnicalSnapshot
+from stock_agent_lab.models import (
+    FundamentalsSnapshot,
+    NewsItem,
+    PriceBar,
+    StockDataset,
+    TechnicalSnapshot,
+)
 
 
 @pytest.fixture
@@ -32,6 +38,17 @@ def sample_dataset() -> StockDataset:
             ma20=31.0,
             ma60=None,
             volume_change_pct=8.5,
+        ),
+        fundamentals=FundamentalsSnapshot(
+            latest_pe=25.5,
+            latest_pb=6.8,
+            latest_roe=18.5,
+            eps=2.45,
+            net_profit_margin=35.2,
+            debt_ratio=28.0,
+            revenue_growth_pct=12.3,
+            profit_growth_pct=15.1,
+            _raw_summary="mock fundamentals data",
         ),
         news=[
             NewsItem(title="公司发布经营动态", published_at="2026-01-30", source="测试新闻"),
