@@ -7,7 +7,7 @@ __pycache__/
 
 outputs/
 .env
-.venv-310
+venv-310
 .env.*
 !.env.example
 
